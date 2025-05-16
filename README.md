@@ -1,5 +1,5 @@
 # PongShowdown
-Projeto de casual game em C para disciplina de Programação Imperativa e Funcional(PIF) - CESAR School.
+### Projeto de casual game em C para disciplina de Programação Imperativa e Funcional(PIF) - CESAR School.
 Professores: Pamela e Thiago.
 
 Desenvolvido como projeto para a disciplina de Programação Imperativa e Funcional, o PongShowdown é uma releitura divertida e desafiadora do tradicional Pong. O jogo mantém a essência do clássico de forma extremamente emocionante.
