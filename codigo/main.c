@@ -23,6 +23,6 @@ int main() {
         usleep(50000); // 50ms (20 FPS)
     }
 
-    endwin(); // Finaliza ncurses
+    endwin();
     return 0;
 }
