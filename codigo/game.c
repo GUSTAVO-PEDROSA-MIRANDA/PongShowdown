@@ -3,10 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 24
 #define WINNING_SCORE 10
+#define SCORES_FILE "pong_scores.dat"
+
+/* ================== */
+/* FUNÇÕES PRINCIPAIS */
+/* ================== */
 
 void reset_ball(GameState *game) {
     game->ball_x = SCREEN_WIDTH / 2;
@@ -31,6 +37,8 @@ void init_game(GameState *game) {
     game->status = MENU;
     game->winning_player = 0;
     game->score_history = NULL;
+    
+    load_scores(game);
 }
 
 void free_resources(GameState *game) {
@@ -49,6 +57,71 @@ void free_resources(GameState *game) {
     }
 }
 
+/* ================== */
+/* FUNÇÕES DE RENDER */
+/* ================== */
+
+void show_menu(GameState *game) {
+    clear();
+    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 10, "PONG GAME");
+    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - 15, "Pressione ESPACO para comecar");
+    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
+    mvprintw(SCREEN_HEIGHT/2 + 4, SCREEN_WIDTH/2 - 15, "Pressione R para resetar placares");
+    
+    // Mostra últimos 3 placares
+    ScoreNode *current = game->score_history;
+    int count = 0;
+    while (current != NULL && count < 3) {
+        mvprintw(SCREEN_HEIGHT/2 + 6 + count, SCREEN_WIDTH/2 - 15, 
+                "Placar %d: %d - %d", 
+                count + 1, current->score_left, current->score_right);
+        current = current->next;
+        count++;
+    }
+    refresh();
+}
+
+void show_game_over(GameState *game) {
+    clear();
+    const char* winner_msg = game->winning_player == 1 ? 
+        "Jogador 1 Vencedor (Esquerda)" : "Jogador 2 Vencedor (Direita)";
+    
+    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 15, "FIM DE JOGO!");
+    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - strlen(winner_msg)/2, "%s", winner_msg);
+    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Placar final: %d - %d", 
+             game->score_left, game->score_right);
+    mvprintw(SCREEN_HEIGHT/2 + 4, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
+    refresh();
+}
+
+void render(GameState *game) {
+    clear();
+
+    if (game->status == MENU) {
+        show_menu(game);
+        return;
+    }
+
+    if (game->status == GAME_OVER) {
+        show_game_over(game);
+        return;
+    }
+
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        for (int x = 0; x < SCREEN_WIDTH; x++) {
+            if (game->field[y][x] != ' ') {
+                mvprintw(y, x, "%c", game->field[y][x]);
+            }
+        }
+    }
+
+    mvprintw(0, SCREEN_WIDTH/2 - 5, "%d - %d", game->score_left, game->score_right);
+}
+
+/* ================== */
+/* FUNÇÕES DE INPUT */
+/* ================== */
+
 void handle_input(GameState *game) {
     int ch = getch();
     
@@ -57,6 +130,9 @@ void handle_input(GameState *game) {
             game->status = PLAYING;
         } else if (ch == 'q') {
             game->quit = true;
+        } else if (ch == 'r' || ch == 'R') {
+            reset_scores(game);
+            show_menu(game); // Atualiza o menu imediatamente
         }
         return;
     }
@@ -77,26 +153,9 @@ void handle_input(GameState *game) {
     }
 }
 
-void show_menu(GameState *game) {
-    clear();
-    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 10, "PONG GAME");
-    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - 15, "Pressione ESPACO para comecar");
-    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
-    refresh();
-}
-
-void show_game_over(GameState *game) {
-    clear();
-    const char* winner_msg = game->winning_player == 1 ? 
-        "Jogador 1 Vencedor (Esquerda)" : "Jogador 2 Vencedor (Direita)";
-    
-    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 15, "FIM DE JOGO!");
-    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - strlen(winner_msg)/2, "%s", winner_msg);
-    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Placar final: %d - %d", 
-             game->score_left, game->score_right);
-    mvprintw(SCREEN_HEIGHT/2 + 4, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
-    refresh();
-}
+/* ================== */
+/* LÓGICA DO JOGO */
+/* ================== */
 
 void update_game(GameState *game) {
     if (game->status != PLAYING) return;
@@ -129,6 +188,7 @@ void update_game(GameState *game) {
         if (game->score_right >= WINNING_SCORE) {
             game->status = GAME_OVER;
             game->winning_player = 2;
+            add_score_to_history(game);
         } else {
             reset_ball(game);
         }
@@ -139,6 +199,7 @@ void update_game(GameState *game) {
         if (game->score_left >= WINNING_SCORE) {
             game->status = GAME_OVER;
             game->winning_player = 1;
+            add_score_to_history(game);
         } else {
             reset_ball(game);
         }
@@ -161,26 +222,71 @@ void update_game(GameState *game) {
     }
 }
 
-void render(GameState *game) {
-    clear();
+/* ================== */
+/* FUNÇÕES DE PLACARES */
+/* ================== */
 
+void add_score_to_history(GameState *game) {
+    ScoreNode *new_node = malloc(sizeof(ScoreNode));
+    if (!new_node) return;
+
+    new_node->score_left = game->score_left;
+    new_node->score_right = game->score_right;
+    new_node->next = game->score_history;
+    game->score_history = new_node;
+    
+    save_scores(game);
+}
+
+void save_scores(GameState *game) {
+    FILE *file = fopen(SCORES_FILE, "wb");
+    if (!file) return;
+
+    ScoreNode *current = game->score_history;
+    while (current != NULL) {
+        fwrite(current, sizeof(ScoreNode), 1, file);
+        current = current->next;
+    }
+
+    fclose(file);
+}
+
+void load_scores(GameState *game) {
+    FILE *file = fopen(SCORES_FILE, "rb");
+    if (!file) return;
+
+    ScoreNode temp;
+    while (fread(&temp, sizeof(ScoreNode), 1, file) == 1) {
+        ScoreNode *new_node = malloc(sizeof(ScoreNode));
+        if (!new_node) break;
+        
+        new_node->score_left = temp.score_left;
+        new_node->score_right = temp.score_right;
+        new_node->next = game->score_history;
+        game->score_history = new_node;
+    }
+
+    fclose(file);
+}
+
+void reset_scores(GameState *game) {
+    // Libera a lista existente
+    ScoreNode *current = game->score_history;
+    while (current != NULL) {
+        ScoreNode *temp = current;
+        current = current->next;
+        free(temp);
+    }
+    game->score_history = NULL;
+    
+    // Apaga o arquivo
+    remove(SCORES_FILE);
+    
+    // Feedback visual
     if (game->status == MENU) {
-        show_menu(game);
-        return;
+        clear();
+        mvprintw(SCREEN_HEIGHT/2 + 8, SCREEN_WIDTH/2 - 15, "Placares resetados com sucesso!");
+        refresh();
+        napms(1500); // Pausa por 1.5 segundos
     }
-
-    if (game->status == GAME_OVER) {
-        show_game_over(game);
-        return;
-    }
-
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-            if (game->field[y][x] != ' ') {
-                mvprintw(y, x, "%c", game->field[y][x]);
-            }
-        }
-    }
-
-    mvprintw(0, SCREEN_WIDTH/2 - 5, "%d - %d", game->score_left, game->score_right);
 }

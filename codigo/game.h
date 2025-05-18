@@ -33,6 +33,9 @@ void update_game(GameState *game);
 void render(GameState *game);
 void show_menu(GameState *game);
 void show_game_over(GameState *game);
-void free_resources(GameState *game); // Libera memória alocada
+void free_resources(GameState *game);
+void save_scores(GameState *game);    // Nova função
+void load_scores(GameState *game);    // Nova função
+void add_score_to_history(GameState *game); // Nova função
 
 #endif

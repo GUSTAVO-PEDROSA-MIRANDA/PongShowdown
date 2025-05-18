@@ -4,7 +4,7 @@
 
 int main() {
     GameState game;
-    init_game(&game);
+    init_game(&game);  // Já carrega os placares salvos
 
     initscr(); cbreak(); noecho();
     keypad(stdscr, TRUE); nodelay(stdscr, TRUE); curs_set(0);
@@ -18,6 +18,6 @@ int main() {
     }
 
     endwin();
-    free_resources(&game); // Libera memória alocada
+    free_resources(&game);
     return 0;
 }
