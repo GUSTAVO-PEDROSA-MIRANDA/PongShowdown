@@ -54,6 +54,8 @@ void init_game(GameState *game) {
     game->score_history = NULL;
     
     load_scores(game);
+
+    render(game);
 }
 
 void free_resources(GameState *game) {
@@ -150,38 +152,29 @@ void show_game_over(GameState *game) {
 
 void render(GameState *game) {
     screenClear();
-    printf("Renderizando estado: %d\n", game->status); // Debug
     
     switch(game->status) {
         case MENU:
-            printf("Mostrando menu\n");
             show_menu(game);
             break;
             
         case PLAYING:
-            printf("Jogo em andamento\n");
-            // Debug de posições
-            printf("Bola: (%d,%d)\n", game->ball_x, game->ball_y);
-            printf("Raquete Esq: %d, Dir: %d\n", game->paddle_left, game->paddle_right);
-            
             draw_paddles(game);
             draw_ball(game);
             
-            // Placar
-            char score[20];
+            // Placar sem debug
+            char score[10];
             sprintf(score, "%d - %d", game->score_left, game->score_right);
             screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
             printf("%s", score);
             break;
             
         case GAME_OVER:
-            printf("Tela de game over\n");
             show_game_over(game);
             break;
     }
     
     screenUpdate();
-    printf("Frame renderizado\n"); // Debug
 }
 
 /* ================== FUNÇÕES DE INPUT ================== */
@@ -189,72 +182,36 @@ void render(GameState *game) {
 void handle_input(GameState *game) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) > 0) {
-        // Debug: mostra o código da tecla pressionada
-        printf("Tecla pressionada: %d ('%c')\n", ch, ch);
+        // Debug simplificado
+        // printf("Tecla: %d\n", ch);
 
         if (game->status == MENU) {
-            printf("Menu - Tecla recebida\n");
-            if (ch == ' ') {  // Espaço
-                game->status = PLAYING;
-                printf("Iniciando jogo...\n");
-            } else if (ch == 'q') {
-                game->quit = true;
-                printf("Saindo do jogo...\n");
-            } else if (ch == 'r' || ch == 'R') {
-                printf("Resetando placares...\n");
-                reset_scores(game);
-                show_menu(game);
-            }
+            if (ch == ' ') game->status = PLAYING;
+            else if (ch == 'q') game->quit = true;
+            else if (ch == 'r' || ch == 'R') reset_scores(game);
             return;
         }
         
-        if (game->status == GAME_OVER) {
-            printf("Tela de Game Over - Tecla recebida\n");
-            if (ch == 'q') {
-                game->quit = true;
-                printf("Saindo do jogo...\n");
-            }
+        if (game->status == GAME_OVER && ch == 'q') {
+            game->quit = true;
             return;
         }
 
-        // Debug para estado PLAYING
-        printf("Jogo ativo - Processando tecla\n");
+        // Tratamento especial para teclas de seta
+        if (ch == 27) {  // Escape - início de sequência de setas
+            read(STDIN_FILENO, &ch, 1);  // Descarta o '['
+            read(STDIN_FILENO, &ch, 1);  // Pega a direção
+            
+            if (ch == 65 && game->paddle_right > 1) game->paddle_right--;         // Seta ↑
+            else if (ch == 66 && game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; // Seta ↓
+            return;
+        }
+
+        // Teclas normais
         switch(ch) {
-            case 'w': 
-                if (game->paddle_left > 1) {
-                    game->paddle_left--;
-                    printf("Raquete esquerda movida para cima: %d\n", game->paddle_left);
-                }
-                break;
-                
-            case 's': 
-                if (game->paddle_left < SCREEN_HEIGHT-2) {
-                    game->paddle_left++;
-                    printf("Raquete esquerda movida para baixo: %d\n", game->paddle_left);
-                }
-                break;
-                
-            case 'A': // Seta para cima
-                if (game->paddle_right > 1) {
-                    game->paddle_right--;
-                    printf("Raquete direita movida para cima: %d\n", game->paddle_right);
-                }
-                break;
-                
-            case 'B': // Seta para baixo
-                if (game->paddle_right < SCREEN_HEIGHT-2) {
-                    game->paddle_right++;
-                    printf("Raquete direita movida para baixo: %d\n", game->paddle_right);
-                }
-                break;
-                
-            case 'q': 
-                game->quit = true;
-                printf("Saindo do jogo...\n");
-                break;
-                
-            default:
-                printf("Tecla não mapeada: %d\n", ch);
+            case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
+            case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
+            case 'q': game->quit = true; break;
         }
     }
 }
