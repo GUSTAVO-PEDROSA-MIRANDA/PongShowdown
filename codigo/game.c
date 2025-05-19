@@ -1,18 +1,32 @@
 #include "game.h"
-#include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <termios.h>
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 24
 #define WINNING_SCORE 10
 #define SCORES_FILE "pong_scores.dat"
 
-/* ================== */
-/* FUNÇÕES PRINCIPAIS */
-/* ================== */
+// Configuração do terminal para input não-bloqueante
+static struct termios old_termios;
+
+void set_nonblocking_input() {
+    struct termios new_termios;
+    tcgetattr(STDIN_FILENO, &old_termios);
+    new_termios = old_termios;
+    new_termios.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+}
+
+void restore_terminal() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_termios);
+}
+
+/* ================== FUNÇÕES PRINCIPAIS ================== */
 
 void reset_ball(GameState *game) {
     game->ball_x = SCREEN_WIDTH / 2;
@@ -23,6 +37,7 @@ void reset_ball(GameState *game) {
 
 void init_game(GameState *game) {
     srand(time(NULL));
+    set_nonblocking_input();
     
     game->field = malloc(SCREEN_HEIGHT * sizeof(char *));
     for (int i = 0; i < SCREEN_HEIGHT; i++) {
@@ -48,6 +63,7 @@ void free_resources(GameState *game) {
         }
         free(game->field);
     }
+    restore_terminal();
     
     ScoreNode *current = game->score_history;
     while (current != NULL) {
@@ -57,132 +73,216 @@ void free_resources(GameState *game) {
     }
 }
 
-/* ================== */
-/* FUNÇÕES DE RENDER */
-/* ================== */
+/* ================== FUNÇÕES DE RENDERIZAÇÃO ================== */
+
+void draw_paddles(GameState *game) {
+    for (int i = -1; i <= 1; i++) {
+        int left = game->paddle_left + i;
+        if (left >= 0 && left < SCREEN_HEIGHT) {
+            screenGotoxy(0, left);
+            putchar('|');
+        }
+        int right = game->paddle_right + i;
+        if (right >= 0 && right < SCREEN_HEIGHT) {
+            screenGotoxy(SCREEN_WIDTH-1, right);
+            putchar('|');
+        }
+    }
+}
+
+void draw_ball(GameState *game) {
+    if (game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH && 
+        game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT) {
+        screenGotoxy(game->ball_x, game->ball_y);
+        putchar('O');
+    }
+}
 
 void show_menu(GameState *game) {
-    clear();
-    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 10, "PONG GAME");
-    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - 15, "Pressione ESPACO para comecar");
-    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
-    mvprintw(SCREEN_HEIGHT/2 + 4, SCREEN_WIDTH/2 - 15, "Pressione R para resetar placares");
+    screenClear();
     
-    // Mostra últimos 3 placares
+    // Título centralizado
+    screenGotoxy(SCREEN_WIDTH/2 - 5, SCREEN_HEIGHT/2 - 2);
+    printf("PONG GAME");
+    
+    // Opções do menu
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2);
+    printf("Pressione ESPACO para comecar");
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 2);
+    printf("Pressione Q para sair");
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
+    printf("Pressione R para resetar placares");
+    
+    // Histórico de placares
     ScoreNode *current = game->score_history;
     int count = 0;
     while (current != NULL && count < 3) {
-        mvprintw(SCREEN_HEIGHT/2 + 6 + count, SCREEN_WIDTH/2 - 15, 
-                "Placar %d: %d - %d", 
-                count + 1, current->score_left, current->score_right);
+        screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 6 + count);
+        printf("Placar %d: %d - %d", count + 1, current->score_left, current->score_right);
         current = current->next;
         count++;
     }
-    refresh();
+    
+    screenUpdate();
 }
 
 void show_game_over(GameState *game) {
-    clear();
+    screenClear();
+    
     const char* winner_msg = game->winning_player == 1 ? 
         "Jogador 1 Vencedor (Esquerda)" : "Jogador 2 Vencedor (Direita)";
     
-    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 15, "FIM DE JOGO!");
-    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - strlen(winner_msg)/2, "%s", winner_msg);
-    mvprintw(SCREEN_HEIGHT/2 + 2, SCREEN_WIDTH/2 - 15, "Placar final: %d - %d", 
-             game->score_left, game->score_right);
-    mvprintw(SCREEN_HEIGHT/2 + 4, SCREEN_WIDTH/2 - 15, "Pressione Q para sair");
-    refresh();
+    screenGotoxy(SCREEN_WIDTH/2 - 8, SCREEN_HEIGHT/2 - 2);
+    printf("FIM DE JOGO!");
+    screenGotoxy(SCREEN_WIDTH/2 - strlen(winner_msg)/2, SCREEN_HEIGHT/2);
+    printf("%s", winner_msg);
+    
+    char final_score[30];
+    sprintf(final_score, "Placar final: %d - %d", game->score_left, game->score_right);
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 2);
+    printf("%s", final_score);
+    
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
+    printf("Pressione Q para sair");
+    
+    screenUpdate();
 }
 
 void render(GameState *game) {
-    clear();
-
-    if (game->status == MENU) {
-        show_menu(game);
-        return;
+    screenClear();
+    printf("Renderizando estado: %d\n", game->status); // Debug
+    
+    switch(game->status) {
+        case MENU:
+            printf("Mostrando menu\n");
+            show_menu(game);
+            break;
+            
+        case PLAYING:
+            printf("Jogo em andamento\n");
+            // Debug de posições
+            printf("Bola: (%d,%d)\n", game->ball_x, game->ball_y);
+            printf("Raquete Esq: %d, Dir: %d\n", game->paddle_left, game->paddle_right);
+            
+            draw_paddles(game);
+            draw_ball(game);
+            
+            // Placar
+            char score[20];
+            sprintf(score, "%d - %d", game->score_left, game->score_right);
+            screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
+            printf("%s", score);
+            break;
+            
+        case GAME_OVER:
+            printf("Tela de game over\n");
+            show_game_over(game);
+            break;
     }
-
-    if (game->status == GAME_OVER) {
-        show_game_over(game);
-        return;
-    }
-
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-            if (game->field[y][x] != ' ') {
-                mvprintw(y, x, "%c", game->field[y][x]);
-            }
-        }
-    }
-
-    mvprintw(0, SCREEN_WIDTH/2 - 5, "%d - %d", game->score_left, game->score_right);
+    
+    screenUpdate();
+    printf("Frame renderizado\n"); // Debug
 }
 
-/* ================== */
-/* FUNÇÕES DE INPUT */
-/* ================== */
+/* ================== FUNÇÕES DE INPUT ================== */
 
 void handle_input(GameState *game) {
-    int ch = getch();
-    
-    if (game->status == MENU) {
-        if (ch == ' ') {
-            game->status = PLAYING;
-        } else if (ch == 'q') {
-            game->quit = true;
-        } else if (ch == 'r' || ch == 'R') {
-            reset_scores(game);
-            show_menu(game); // Atualiza o menu imediatamente
-        }
-        return;
-    }
-    
-    if (game->status == GAME_OVER) {
-        if (ch == 'q') {
-            game->quit = true;
-        }
-        return;
-    }
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) > 0) {
+        // Debug: mostra o código da tecla pressionada
+        printf("Tecla pressionada: %d ('%c')\n", ch, ch);
 
-    switch(ch) {
-        case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
-        case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
-        case KEY_UP: if (game->paddle_right > 1) game->paddle_right--; break;
-        case KEY_DOWN: if (game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; break;
-        case 'q': game->quit = true; break;
+        if (game->status == MENU) {
+            printf("Menu - Tecla recebida\n");
+            if (ch == ' ') {  // Espaço
+                game->status = PLAYING;
+                printf("Iniciando jogo...\n");
+            } else if (ch == 'q') {
+                game->quit = true;
+                printf("Saindo do jogo...\n");
+            } else if (ch == 'r' || ch == 'R') {
+                printf("Resetando placares...\n");
+                reset_scores(game);
+                show_menu(game);
+            }
+            return;
+        }
+        
+        if (game->status == GAME_OVER) {
+            printf("Tela de Game Over - Tecla recebida\n");
+            if (ch == 'q') {
+                game->quit = true;
+                printf("Saindo do jogo...\n");
+            }
+            return;
+        }
+
+        // Debug para estado PLAYING
+        printf("Jogo ativo - Processando tecla\n");
+        switch(ch) {
+            case 'w': 
+                if (game->paddle_left > 1) {
+                    game->paddle_left--;
+                    printf("Raquete esquerda movida para cima: %d\n", game->paddle_left);
+                }
+                break;
+                
+            case 's': 
+                if (game->paddle_left < SCREEN_HEIGHT-2) {
+                    game->paddle_left++;
+                    printf("Raquete esquerda movida para baixo: %d\n", game->paddle_left);
+                }
+                break;
+                
+            case 'A': // Seta para cima
+                if (game->paddle_right > 1) {
+                    game->paddle_right--;
+                    printf("Raquete direita movida para cima: %d\n", game->paddle_right);
+                }
+                break;
+                
+            case 'B': // Seta para baixo
+                if (game->paddle_right < SCREEN_HEIGHT-2) {
+                    game->paddle_right++;
+                    printf("Raquete direita movida para baixo: %d\n", game->paddle_right);
+                }
+                break;
+                
+            case 'q': 
+                game->quit = true;
+                printf("Saindo do jogo...\n");
+                break;
+                
+            default:
+                printf("Tecla não mapeada: %d\n", ch);
+        }
     }
 }
 
-/* ================== */
-/* LÓGICA DO JOGO */
-/* ================== */
+/* ================== LÓGICA DO JOGO ================== */
 
 void update_game(GameState *game) {
     if (game->status != PLAYING) return;
 
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        memset(game->field[y], ' ', SCREEN_WIDTH);
-    }
-
+    // Movimento da bola
     game->ball_x += game->ball_dir_x;
     game->ball_y += game->ball_dir_y;
 
+    // Colisão com bordas
     if (game->ball_y <= 0 || game->ball_y >= SCREEN_HEIGHT - 1) {
         game->ball_dir_y *= -1;
     }
 
-    if (game->ball_x == 1 && 
-        game->ball_y >= game->paddle_left - 1 && 
-        game->ball_y <= game->paddle_left + 1) {
+    // Colisão com raquetes
+    if (game->ball_x == 1 && abs(game->ball_y - game->paddle_left) <= 1) {
         game->ball_dir_x = 1;
     }
 
-    if (game->ball_x == SCREEN_WIDTH - 2 && 
-        game->ball_y >= game->paddle_right - 1 && 
-        game->ball_y <= game->paddle_right + 1) {
+    if (game->ball_x == SCREEN_WIDTH - 2 && abs(game->ball_y - game->paddle_right) <= 1) {
         game->ball_dir_x = -1;
     }
 
+    // Pontuação
     if (game->ball_x < 0) {
         game->score_right++;
         if (game->score_right >= WINNING_SCORE) {
@@ -204,27 +304,9 @@ void update_game(GameState *game) {
             reset_ball(game);
         }
     }
-
-    if (game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT && 
-        game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH) {
-        game->field[game->ball_y][game->ball_x] = 'O';
-    }
-
-    for (int i = -1; i <= 1; i++) {
-        int left = game->paddle_left + i;
-        if (left >= 0 && left < SCREEN_HEIGHT) {
-            game->field[left][0] = '|';
-        }
-        int right = game->paddle_right + i;
-        if (right >= 0 && right < SCREEN_HEIGHT) {
-            game->field[right][SCREEN_WIDTH-1] = '|';
-        }
-    }
 }
 
-/* ================== */
-/* FUNÇÕES DE PLACARES */
-/* ================== */
+/* ================== FUNÇÕES DE PLACAR ================== */
 
 void add_score_to_history(GameState *game) {
     ScoreNode *new_node = malloc(sizeof(ScoreNode));
@@ -284,9 +366,10 @@ void reset_scores(GameState *game) {
     
     // Feedback visual
     if (game->status == MENU) {
-        clear();
-        mvprintw(SCREEN_HEIGHT/2 + 8, SCREEN_WIDTH/2 - 15, "Placares resetados com sucesso!");
-        refresh();
-        napms(1500); // Pausa por 1.5 segundos
+        screenClear();
+        screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 8);
+        printf("Placares resetados com sucesso!");
+        screenUpdate();
+        usleep(1500000);  // 1.5 segundos
     }
 }

@@ -2,6 +2,10 @@
 #define GAME_H
 
 #include <stdbool.h>
+#include "../cli-lib/include/screen.h"
+
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 24
 
 typedef enum {
     MENU,
@@ -9,7 +13,6 @@ typedef enum {
     GAME_OVER
 } GameStatus;
 
-// Nó para lista encadeada de históricos de placar
 typedef struct ScoreNode {
     int score_left, score_right;
     struct ScoreNode *next;
@@ -23,19 +26,21 @@ typedef struct {
     bool quit;
     GameStatus status;
     int winning_player;
-    char **field;          // Matriz dinâmica para o campo
-    ScoreNode *score_history; // Lista de placares
+    char **field;
+    ScoreNode *score_history;
 } GameState;
 
+// Funções principais
 void init_game(GameState *game);
 void handle_input(GameState *game);
 void update_game(GameState *game);
 void render(GameState *game);
-void show_menu(GameState *game);
-void show_game_over(GameState *game);
 void free_resources(GameState *game);
-void save_scores(GameState *game);    // Nova função
-void load_scores(GameState *game);    // Nova função
-void add_score_to_history(GameState *game); // Nova função
+
+// Funções de placar
+void add_score_to_history(GameState *game);
+void save_scores(GameState *game);
+void load_scores(GameState *game);
+void reset_scores(GameState *game);
 
 #endif
