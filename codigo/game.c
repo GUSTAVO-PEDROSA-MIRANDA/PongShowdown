@@ -137,8 +137,8 @@ void draw_ball(GameState *game) {
 void show_menu(GameState *game) {
     screenClear();
     
-    screenGotoxy(SCREEN_WIDTH/2 - 5, SCREEN_HEIGHT/2 - 2);
-    printf("PONG GAME");
+    screenGotoxy(SCREEN_WIDTH/2 - 6, SCREEN_HEIGHT/2 - 2);
+    printf("PONG SHOWDOWN");
     
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2);
     printf("Pressione ESPACO para comecar");
