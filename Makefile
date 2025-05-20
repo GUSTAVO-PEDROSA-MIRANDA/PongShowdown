@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I. -Icli-lib/include
-LDFLAGS = -L./cli-lib/lib -lcli-lib
+LDFLAGS = -L./cli-lib/lib -lcli-lib -lm
 
 SRC = codigo/main.c codigo/game.c
 OBJ = $(SRC:.c=.o)

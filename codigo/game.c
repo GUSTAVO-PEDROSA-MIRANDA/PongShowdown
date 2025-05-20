@@ -4,20 +4,24 @@
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 24
 #define WINNING_SCORE 10
 #define SCORES_FILE "pong_scores.dat"
+#define BALL_SPEED 1.8f
 
-/* ================== FUNÇÕES PRINCIPAIS ================== */
+/* ========== Funções da Bola ========== */
 
 void reset_ball(GameState *game) {
     game->ball_x = SCREEN_WIDTH / 2;
     game->ball_y = SCREEN_HEIGHT / 2;
-    game->ball_dir_x = (rand() % 2) ? 1 : -1;
-    game->ball_dir_y = (rand() % 2) ? 1 : -1;
+    game->ball_dir_x = (rand() % 2) ? BALL_SPEED : -BALL_SPEED;
+    game->ball_dir_y = ((rand() % 3) - 1) * 0.7f;
 }
+
+/* ========== Funções Principais ========== */
 
 void init_game(GameState *game) {
     srand(time(NULL));
@@ -37,27 +41,75 @@ void init_game(GameState *game) {
     game->score_history = NULL;
     
     load_scores(game);
-
-    render(game);
 }
 
-void free_resources(GameState *game) {
-    if (game->field) {
-        for (int i = 0; i < SCREEN_HEIGHT; i++) {
-            free(game->field[i]);
-        }
-        free(game->field);
+void handle_input(GameState *game) {
+    if (!keyhit()) return;
+    
+    int ch = readch();
+    
+    if (game->status == MENU) {
+        if (ch == ' ') game->status = PLAYING;
+        else if (ch == 'q') game->quit = true;
+        else if (ch == 'r' || ch == 'R') reset_scores(game);
+        return;
     }
     
-    ScoreNode *current = game->score_history;
-    while (current != NULL) {
-        ScoreNode *temp = current;
-        current = current->next;
-        free(temp);
+    if (game->status == GAME_OVER && ch == 'q') {
+        game->quit = true;
+        return;
+    }
+
+    switch(ch) {
+        case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
+        case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
+        case 'i': if (game->paddle_right > 1) game->paddle_right--; break;
+        case 'k': if (game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; break;
     }
 }
 
-/* ================== FUNÇÕES DE RENDERIZAÇÃO ================== */
+void update_game(GameState *game) {
+    if (game->status != PLAYING) return;
+
+    game->ball_x += game->ball_dir_x;
+    game->ball_y += game->ball_dir_y;
+
+    // Colisão com bordas
+    if (game->ball_y <= 0 || game->ball_y >= SCREEN_HEIGHT - 1) {
+        game->ball_dir_y *= -1;
+    }
+
+    // Colisão com raquetes (versão otimizada)
+    if (game->ball_x <= 1 && abs(game->ball_y - game->paddle_left) <= 2) {
+        float hit_pos = (game->ball_y - game->paddle_left) / 2.0f;
+        game->ball_dir_x = (game->ball_dir_x < 0 ? -game->ball_dir_x : game->ball_dir_x) * 1.1f;
+        game->ball_dir_y = hit_pos;
+        game->ball_x = 2; // Previne colisão múltipla
+    }
+
+    if (game->ball_x >= SCREEN_WIDTH - 2 && abs(game->ball_y - game->paddle_right) <= 2) {
+        float hit_pos = (game->ball_y - game->paddle_right) / 2.0f;
+        game->ball_dir_x = (game->ball_dir_x > 0 ? -game->ball_dir_x : game->ball_dir_x) * 1.1f;
+        game->ball_dir_y = hit_pos;
+        game->ball_x = SCREEN_WIDTH - 3;
+    }
+
+    // Sistema de pontuação
+    if (game->ball_x < 0 || game->ball_x >= SCREEN_WIDTH) {
+        if (game->ball_x < 0) game->score_right++;
+        else game->score_left++;
+        
+        if (game->score_left >= WINNING_SCORE || game->score_right >= WINNING_SCORE) {
+            game->status = GAME_OVER;
+            game->winning_player = (game->score_left > game->score_right) ? 1 : 2;
+            add_score_to_history(game);
+        } else {
+            reset_ball(game);
+        }
+    }
+}
+
+/* ========== Renderização ========== */
 
 void draw_paddles(GameState *game) {
     for (int i = -1; i <= 1; i++) {
@@ -77,7 +129,7 @@ void draw_paddles(GameState *game) {
 void draw_ball(GameState *game) {
     if (game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH && 
         game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT) {
-        screenGotoxy(game->ball_x, game->ball_y);
+        screenGotoxy((int)game->ball_x, (int)game->ball_y);
         putchar('O');
     }
 }
@@ -103,8 +155,6 @@ void show_menu(GameState *game) {
         current = current->next;
         count++;
     }
-    
-    screenUpdate();
 }
 
 void show_game_over(GameState *game) {
@@ -125,8 +175,6 @@ void show_game_over(GameState *game) {
     
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
     printf("Pressione Q para sair");
-    
-    screenUpdate();
 }
 
 void render(GameState *game) {
@@ -141,6 +189,7 @@ void render(GameState *game) {
             draw_paddles(game);
             draw_ball(game);
             
+            // Placar
             char score[10];
             sprintf(score, "%d - %d", game->score_left, game->score_right);
             screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
@@ -155,80 +204,7 @@ void render(GameState *game) {
     screenUpdate();
 }
 
-/* ================== FUNÇÕES DE INPUT ================== */
-
-void handle_input(GameState *game) {
-    if (!keyhit()) return;
-    
-    int ch = readch();
-    
-    if (game->status == MENU) {
-        if (ch == ' ') game->status = PLAYING;
-        else if (ch == 'q') game->quit = true;
-        else if (ch == 'r' || ch == 'R') reset_scores(game);
-        return;
-    }
-    
-    if (game->status == GAME_OVER && ch == 'q') {
-        game->quit = true;
-        return;
-    }
-
-    switch(ch) {
-        case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
-        case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
-        case 'o': if (game->paddle_right > 1) game->paddle_right--; break;  // Seta ↑
-        case 'k': if (game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; break;  // Seta ↓
-        case 27: game->quit = true; break;  // Tecla ESC
-    }
-}
-
-/* ================== LÓGICA DO JOGO ================== */
-
-void update_game(GameState *game) {
-    if (game->status != PLAYING) return;
-
-    game->ball_x += game->ball_dir_x;
-    game->ball_y += game->ball_dir_y;
-
-    if (game->ball_y <= 0 || game->ball_y >= SCREEN_HEIGHT - 1) {
-        game->ball_dir_y *= -1;
-    }
-
-    if (game->ball_x == 1 && abs(game->ball_y - game->paddle_left) <= 1) {
-        game->ball_dir_x = 1;
-        game->ball_dir_y = (game->ball_y - game->paddle_left) * 0.5;
-    }
-
-    if (game->ball_x == SCREEN_WIDTH - 2 && abs(game->ball_y - game->paddle_right) <= 1) {
-        game->ball_dir_x = -1;
-        game->ball_dir_y = (game->ball_y - game->paddle_right) * 0.5;
-    }
-
-    if (game->ball_x < 0) {
-        game->score_right++;
-        if (game->score_right >= WINNING_SCORE) {
-            game->status = GAME_OVER;
-            game->winning_player = 2;
-            add_score_to_history(game);
-        } else {
-            reset_ball(game);
-        }
-    }
-    
-    if (game->ball_x >= SCREEN_WIDTH) {
-        game->score_left++;
-        if (game->score_left >= WINNING_SCORE) {
-            game->status = GAME_OVER;
-            game->winning_player = 1;
-            add_score_to_history(game);
-        } else {
-            reset_ball(game);
-        }
-    }
-}
-
-/* ================== FUNÇÕES DE PLACAR ================== */
+/* ========== Funções de Placar ========== */
 
 void add_score_to_history(GameState *game) {
     ScoreNode *new_node = malloc(sizeof(ScoreNode));
@@ -290,5 +266,21 @@ void reset_scores(GameState *game) {
         printf("Placares resetados com sucesso!");
         screenUpdate();
         usleep(1500000);
+    }
+}
+
+void free_resources(GameState *game) {
+    if (game->field) {
+        for (int i = 0; i < SCREEN_HEIGHT; i++) {
+            free(game->field[i]);
+        }
+        free(game->field);
+    }
+    
+    ScoreNode *current = game->score_history;
+    while (current != NULL) {
+        ScoreNode *temp = current;
+        current = current->next;
+        free(temp);
     }
 }

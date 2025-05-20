@@ -8,7 +8,7 @@ int main() {
     screenInit(1);
     screenHideCursor();
     keyboardInit();
-    timerInit(50);  // ~20 FPS
+    timerInit(20);  // ~14 FPS
 
     GameState game;
     init_game(&game);
