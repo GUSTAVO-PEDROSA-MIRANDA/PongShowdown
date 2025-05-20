@@ -178,27 +178,57 @@ void show_game_over(GameState *game) {
 }
 
 void render(GameState *game) {
-    screenClear();
-    
-    switch(game->status) {
-        case MENU:
-            show_menu(game);
-            break;
+    screenClear();  // Limpa a tela primeiro
+
+    if (game->status == PLAYING) {
+        // Preenche a matriz com espaços
+        for (int y = 0; y < SCREEN_HEIGHT; y++) {
+            memset(game->field[y], ' ', SCREEN_WIDTH);
+        }
+
+        // Desenha a bola
+        if (game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT && 
+            game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH) {
+            game->field[(int)game->ball_y][(int)game->ball_x] = 'O';
+        }
+
+        // Desenha as raquetes
+        for (int i = -1; i <= 1; i++) {
+            int left = game->paddle_left + i;
+            int right = game->paddle_right + i;
             
-        case PLAYING:
-            draw_paddles(game);
-            draw_ball(game);
-            
-            // Placar
-            char score[10];
-            sprintf(score, "%d - %d", game->score_left, game->score_right);
-            screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
-            printf("%s", score);
-            break;
-            
-        case GAME_OVER:
-            show_game_over(game);
-            break;
+            if (left >= 0 && left < SCREEN_HEIGHT) {
+                game->field[left][0] = '|';
+            }
+            if (right >= 0 && right < SCREEN_HEIGHT) {
+                game->field[right][SCREEN_WIDTH-1] = '|';
+            }
+        }
+
+        // Renderiza a matriz
+        for (int y = 0; y < SCREEN_HEIGHT; y++) {
+            screenGotoxy(0, y);
+            fwrite(game->field[y], sizeof(char), SCREEN_WIDTH, stdout);
+        }
+
+        // Placar (renderizado separadamente para evitar flicker)
+        char score[10];
+        sprintf(score, "%d - %d", game->score_left, game->score_right);
+        screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
+        printf("%s", score);
+
+    } else {
+        // Menus são renderizados de forma independente
+        switch(game->status) {
+            case MENU:
+                show_menu(game);
+                break;
+            case GAME_OVER:
+                show_game_over(game);
+                break;
+            case PLAYING:  // Adicionado para eliminar o warning
+                break;
+        }
     }
     
     screenUpdate();
