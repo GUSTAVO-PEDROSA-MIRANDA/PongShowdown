@@ -1,11 +1,46 @@
-# PongShowdown
-### Projeto de casual game em C para disciplina de Programação Imperativa e Funcional(PIF) - CESAR School.
-Professores: Pamela e Thiago.
+# Pong Showdown
+## Descrição do Projeto
+Pong Showdown é um jogo de arcade em linha de comando desenvolvido em C, baseado no clássico Pong, com elementos modernos como placares persistentes, física de bola aprimorada e menus interativos.
 
-Desenvolvido como projeto para a disciplina de Programação Imperativa e Funcional, o PongShowdown é uma releitura divertida e desafiadora do tradicional Pong. O jogo mantém a essência do clássico de forma extremamente emocionante.
+O projeto foi desenvolvido para a disciplina de Programação Imperativa e Funcional (2025.1), atendendo a todos os requisitos obrigatórios:
+✔ Estruturas (structs)
+✔ Ponteiros e alocação dinâmica
+✔ Listas encadeadas (histórico de placares)
+✔ Matrizes (renderização do campo)
+✔ Leitura/escrita em arquivo (salvamento de scores)
+✔ Biblioteca CLI-LIB obrigatória (controle de tela, teclado e timer)
 
-Principais Funcionalidades: 🎾 Raquetes e Bola – Dois jogadores controlam suas raquetes, rebatendo uma (ou mais) bolas em movimento.
+## 🎮 Como Jogar
 
-📊 Sistema de Pontuação – Cada vez que a bola ultrapassa a raquete do adversário, o jogador marca um ponto, disputando a vitória em uma batalha dinâmica.
+### Controles
 
-⏸ Controle Total – O jogo pode ser pausado a qualquer momento, permitindo que os jogadores façam uma pausa e retomem a partida quando quiserem.
+**Jogador 1 (Esquerda):**
+W – Mover para cima
+S – Mover para baixo
+
+**Jogador 2 (Direita):**
+I – Mover para cima
+K – Mover para baixo
+
+**Menu:**
+ESPAÇO – Iniciar jogo
+Q – Sair
+R – Resetar placares
+
+## Regras
+
+O primeiro jogador a marcar 10 pontos vence.
+A bola acelera após cada rebatida.
+Placar salvo automaticamente em pong_scores.dat.
+
+## Compilação
+
+**GCC instalado**
+**Linux/MacOS (ou WSL no Windows)**
+
+### Comandos
+
+git clone https://github.com/GUSTAVO-PEDROSA-MIRANDA/PongShowdown.git
+cd PongShowdown
+make
+./pong
