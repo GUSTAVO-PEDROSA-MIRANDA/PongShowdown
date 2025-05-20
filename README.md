@@ -15,27 +15,37 @@ O projeto foi desenvolvido para a disciplina de Programação Imperativa e Funci
 ### Controles
 
 **Jogador 1 (Esquerda):**
+
 W – Mover para cima
+
 S – Mover para baixo
 
 **Jogador 2 (Direita):**
+
 I – Mover para cima
+
 K – Mover para baixo
 
 **Menu:**
+
 ESPAÇO – Iniciar jogo
+
 Q – Sair
+
 R – Resetar placares
 
 ## Regras
 
 O primeiro jogador a marcar 10 pontos vence.
+
 A bola acelera após cada rebatida.
+
 Placar salvo automaticamente em pong_scores.dat.
 
 ## Compilação
 
 **GCC instalado**
+
 **Linux/MacOS (ou WSL no Windows)**
 
 ### Comandos
