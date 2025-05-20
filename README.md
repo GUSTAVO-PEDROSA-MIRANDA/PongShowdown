@@ -1,5 +1,5 @@
 # Pong Showdown
-## Descrição do Projeto
+## 📌Descrição do Projeto
 Pong Showdown é um jogo de arcade em linha de comando desenvolvido em C, baseado no clássico Pong, com elementos modernos como placares persistentes, física de bola aprimorada e menus interativos.
 
 O projeto foi desenvolvido para a disciplina de Programação Imperativa e Funcional (2025.1), atendendo a todos os requisitos obrigatórios:
@@ -40,7 +40,7 @@ Q – Sair
 
 R – Resetar placares
 
-## Regras
+## 📝 Regras
 
 O primeiro jogador a marcar 10 pontos vence.
 
@@ -48,13 +48,13 @@ A bola acelera após cada rebatida.
 
 Placar salvo automaticamente em pong_scores.dat.
 
-## Compilação
+## 🛠️Compilação
 
 **GCC instalado**
 
 **Linux/MacOS (ou WSL no Windows)**
 
-### Comandos
+## 🕹️Execução
 
 git clone https://github.com/GUSTAVO-PEDROSA-MIRANDA/PongShowdown.git
 
