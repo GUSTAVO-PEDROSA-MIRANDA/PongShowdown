@@ -4,27 +4,11 @@
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <termios.h>
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 24
 #define WINNING_SCORE 10
 #define SCORES_FILE "pong_scores.dat"
-
-// Configuração do terminal para input não-bloqueante
-static struct termios old_termios;
-
-void set_nonblocking_input() {
-    struct termios new_termios;
-    tcgetattr(STDIN_FILENO, &old_termios);
-    new_termios = old_termios;
-    new_termios.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
-}
-
-void restore_terminal() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &old_termios);
-}
 
 /* ================== FUNÇÕES PRINCIPAIS ================== */
 
@@ -37,7 +21,6 @@ void reset_ball(GameState *game) {
 
 void init_game(GameState *game) {
     srand(time(NULL));
-    set_nonblocking_input();
     
     game->field = malloc(SCREEN_HEIGHT * sizeof(char *));
     for (int i = 0; i < SCREEN_HEIGHT; i++) {
@@ -65,7 +48,6 @@ void free_resources(GameState *game) {
         }
         free(game->field);
     }
-    restore_terminal();
     
     ScoreNode *current = game->score_history;
     while (current != NULL) {
@@ -103,11 +85,9 @@ void draw_ball(GameState *game) {
 void show_menu(GameState *game) {
     screenClear();
     
-    // Título centralizado
     screenGotoxy(SCREEN_WIDTH/2 - 5, SCREEN_HEIGHT/2 - 2);
     printf("PONG GAME");
     
-    // Opções do menu
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2);
     printf("Pressione ESPACO para comecar");
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 2);
@@ -115,7 +95,6 @@ void show_menu(GameState *game) {
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
     printf("Pressione R para resetar placares");
     
-    // Histórico de placares
     ScoreNode *current = game->score_history;
     int count = 0;
     while (current != NULL && count < 3) {
@@ -162,7 +141,6 @@ void render(GameState *game) {
             draw_paddles(game);
             draw_ball(game);
             
-            // Placar sem debug
             char score[10];
             sprintf(score, "%d - %d", game->score_left, game->score_right);
             screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
@@ -180,39 +158,28 @@ void render(GameState *game) {
 /* ================== FUNÇÕES DE INPUT ================== */
 
 void handle_input(GameState *game) {
-    char ch;
-    if (read(STDIN_FILENO, &ch, 1) > 0) {
-        // Debug simplificado
-        // printf("Tecla: %d\n", ch);
+    if (!keyhit()) return;
+    
+    int ch = readch();
+    
+    if (game->status == MENU) {
+        if (ch == ' ') game->status = PLAYING;
+        else if (ch == 'q') game->quit = true;
+        else if (ch == 'r' || ch == 'R') reset_scores(game);
+        return;
+    }
+    
+    if (game->status == GAME_OVER && ch == 'q') {
+        game->quit = true;
+        return;
+    }
 
-        if (game->status == MENU) {
-            if (ch == ' ') game->status = PLAYING;
-            else if (ch == 'q') game->quit = true;
-            else if (ch == 'r' || ch == 'R') reset_scores(game);
-            return;
-        }
-        
-        if (game->status == GAME_OVER && ch == 'q') {
-            game->quit = true;
-            return;
-        }
-
-        // Tratamento especial para teclas de seta
-        if (ch == 27) {  // Escape - início de sequência de setas
-            read(STDIN_FILENO, &ch, 1);  // Descarta o '['
-            read(STDIN_FILENO, &ch, 1);  // Pega a direção
-            
-            if (ch == 65 && game->paddle_right > 1) game->paddle_right--;         // Seta ↑
-            else if (ch == 66 && game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; // Seta ↓
-            return;
-        }
-
-        // Teclas normais
-        switch(ch) {
-            case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
-            case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
-            case 'q': game->quit = true; break;
-        }
+    switch(ch) {
+        case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
+        case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
+        case 'o': if (game->paddle_right > 1) game->paddle_right--; break;  // Seta ↑
+        case 'k': if (game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; break;  // Seta ↓
+        case 27: game->quit = true; break;  // Tecla ESC
     }
 }
 
@@ -221,25 +188,23 @@ void handle_input(GameState *game) {
 void update_game(GameState *game) {
     if (game->status != PLAYING) return;
 
-    // Movimento da bola
     game->ball_x += game->ball_dir_x;
     game->ball_y += game->ball_dir_y;
 
-    // Colisão com bordas
     if (game->ball_y <= 0 || game->ball_y >= SCREEN_HEIGHT - 1) {
         game->ball_dir_y *= -1;
     }
 
-    // Colisão com raquetes
     if (game->ball_x == 1 && abs(game->ball_y - game->paddle_left) <= 1) {
         game->ball_dir_x = 1;
+        game->ball_dir_y = (game->ball_y - game->paddle_left) * 0.5;
     }
 
     if (game->ball_x == SCREEN_WIDTH - 2 && abs(game->ball_y - game->paddle_right) <= 1) {
         game->ball_dir_x = -1;
+        game->ball_dir_y = (game->ball_y - game->paddle_right) * 0.5;
     }
 
-    // Pontuação
     if (game->ball_x < 0) {
         game->score_right++;
         if (game->score_right >= WINNING_SCORE) {
@@ -309,7 +274,6 @@ void load_scores(GameState *game) {
 }
 
 void reset_scores(GameState *game) {
-    // Libera a lista existente
     ScoreNode *current = game->score_history;
     while (current != NULL) {
         ScoreNode *temp = current;
@@ -318,15 +282,13 @@ void reset_scores(GameState *game) {
     }
     game->score_history = NULL;
     
-    // Apaga o arquivo
     remove(SCORES_FILE);
     
-    // Feedback visual
     if (game->status == MENU) {
         screenClear();
         screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 8);
         printf("Placares resetados com sucesso!");
         screenUpdate();
-        usleep(1500000);  // 1.5 segundos
+        usleep(1500000);
     }
 }

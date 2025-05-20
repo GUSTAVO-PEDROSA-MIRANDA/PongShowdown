@@ -1,27 +1,29 @@
 #include "game.h"
-#include <unistd.h> 
-#include <stdio.h>
+#include "../cli-lib/include/screen.h"
+#include "../cli-lib/include/keyboard.h"
+#include "../cli-lib/include/timer.h"
 
 int main() {
-    // Inicialização do jogo
+    // Inicializa sistemas da CLI-LIB
+    screenInit(1);
+    screenHideCursor();
+    keyboardInit();
+    timerInit(50);  // ~20 FPS
+
     GameState game;
-    
-    // Primeiro inicializa a tela
-    screenInit(1);      // Modo tela cheia
-    screenHideCursor();  // Esconde o cursor
-    
-    // Depois inicializa o jogo (que agora vai renderizar o menu)
     init_game(&game);
-    
-    // Loop principal do jogo
+
     while (!game.quit) {
         handle_input(&game);
-        update_game(&game);
-        render(&game);
-        usleep(30000);
+        
+        if (timerTimeOver()) {  // Atualiza no ritmo do timer
+            update_game(&game);
+            render(&game);
+        }
     }
-    
-    // Finalização
+
+    // Limpeza
+    keyboardDestroy();
     screenDestroy();
     free_resources(&game);
     return 0;

@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 #include "../cli-lib/include/screen.h"
+#include "../cli-lib/include/keyboard.h"
+#include "../cli-lib/include/timer.h"
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 24
