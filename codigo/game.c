@@ -137,23 +137,45 @@ void draw_ball(GameState *game) {
 void show_menu(GameState *game) {
     screenClear();
     
-    screenGotoxy(SCREEN_WIDTH/2 - 6, SCREEN_HEIGHT/2 - 2);
-    printf("PONG SHOWDOWN");
-    
+    // Título centralizado com efeito
+    screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 - 5);
+    printf("====================");
+    screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 - 4);
+    printf("    PONG SHOWDOWN    ");
+    screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 - 3);
+    printf("====================");
+
+    // Opções do menu alinhadas
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 - 1);
+    printf("> ESPAÇO - Iniciar Jogo");
     screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2);
-    printf("Pressione ESPACO para comecar");
-    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 2);
-    printf("Pressione Q para sair");
-    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
-    printf("Pressione R para resetar placares");
-    
+    printf("> Q - Sair");
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 1);
+    printf("> R - Resetar Placar");
+
+    // Linha divisória
+    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 3);
+    printf("----------------------------");
+
+    // Melhores placares
+    screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 + 5);
+    printf("MELHORES PARTIDAS");
+
     ScoreNode *current = game->score_history;
     int count = 0;
     while (current != NULL && count < 3) {
-        screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 6 + count);
-        printf("Placar %d: %d - %d", count + 1, current->score_left, current->score_right);
+        screenGotoxy(SCREEN_WIDTH/2 - 8, SCREEN_HEIGHT/2 + 7 + count);
+        printf("%d. %2d - %-2d", count + 1, current->score_left, current->score_right);
         current = current->next;
         count++;
+    }
+
+    // Elementos decorativos nas laterais
+    for (int i = 0; i < 3; i++) {
+        screenGotoxy(SCREEN_WIDTH/2 - 20, SCREEN_HEIGHT/2 - 4 + i);
+        putchar('|');
+        screenGotoxy(SCREEN_WIDTH/2 + 20, SCREEN_HEIGHT/2 - 4 + i);
+        putchar('|');
     }
 }
 
@@ -161,20 +183,49 @@ void show_game_over(GameState *game) {
     screenClear();
     
     const char* winner_msg = game->winning_player == 1 ? 
-        "Jogador 1 Vencedor (Esquerda)" : "Jogador 2 Vencedor (Direita)";
-    
-    screenGotoxy(SCREEN_WIDTH/2 - 8, SCREEN_HEIGHT/2 - 2);
-    printf("FIM DE JOGO!");
-    screenGotoxy(SCREEN_WIDTH/2 - strlen(winner_msg)/2, SCREEN_HEIGHT/2);
+        "JOGADOR 1 VENCEU!" : "JOGADOR 2 VENCEU!";
+
+    // Moldura superior
+    screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 - 5);
+    printf(" _____________________ ");
+    screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 - 4);
+    printf("|                     |");
+
+    // Título central
+    screenGotoxy(SCREEN_WIDTH/2 - 5, SCREEN_HEIGHT/2 - 3);
+    printf("GAME OVER");
+
+    // Linha divisória
+    screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 - 2);
+    printf("|---------------------|");
+
+    // Mensagem do vencedor
+    screenGotoxy(SCREEN_WIDTH/2 - strlen(winner_msg)/2, SCREEN_HEIGHT/2 - 1);
     printf("%s", winner_msg);
-    
+
+    // Placar final
     char final_score[30];
-    sprintf(final_score, "Placar final: %d - %d", game->score_left, game->score_right);
-    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 2);
+    sprintf(final_score, "Placar: %d - %d", game->score_left, game->score_right);
+    screenGotoxy(SCREEN_WIDTH/2 - strlen(final_score)/2, SCREEN_HEIGHT/2);
     printf("%s", final_score);
-    
-    screenGotoxy(SCREEN_WIDTH/2 - 15, SCREEN_HEIGHT/2 + 4);
+
+    // Moldura inferior
+    screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 + 1);
+    printf("|                     |");
+    screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 + 2);
+    printf(" --------------------- ");
+
+    // Instrução para sair
+    screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 + 4);
     printf("Pressione Q para sair");
+
+    // Efeitos decorativos nas laterais
+    for (int i = 0; i < 5; i++) {
+        screenGotoxy(10, SCREEN_HEIGHT/2 - 3 + i);
+        putchar('[');
+        screenGotoxy(SCREEN_WIDTH - 11, SCREEN_HEIGHT/2 - 3 + i);
+        putchar(']');
+    }
 }
 
 void render(GameState *game) {
