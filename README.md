@@ -2,7 +2,7 @@
 ## 📌Descrição do Projeto
 Pong Showdown é um jogo de arcade em linha de comando desenvolvido em C, baseado no clássico Pong, com elementos modernos como placares persistentes, física de bola aprimorada e menus interativos.
 
-O projeto foi desenvolvido para a disciplina de Programação Imperativa e Funcional (2025.1), atendendo a todos os requisitos obrigatórios:
+O projeto foi desenvolvido para a disciplina de Programação Imperativa e Funcional (PIF), atendendo a todos os requisitos obrigatórios:
 
 ✔ Estruturas (structs)
 
