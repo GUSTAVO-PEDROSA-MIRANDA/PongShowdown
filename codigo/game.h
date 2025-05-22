@@ -16,33 +16,33 @@ typedef enum {
 } GameStatus;
 
 typedef struct ScoreNode {
-    int score_left, score_right;
+    int placar_esquerda, placar_direita;
     struct ScoreNode *next;
 } ScoreNode;
 
 typedef struct {
-    int paddle_left, paddle_right;
-    int ball_x, ball_y;
-    int ball_dir_x, ball_dir_y;
-    int score_left, score_right;
+    int raquete_esquerda, raquete_direita;
+    int bola_x, bola_y;
+    int bola_dir_x, bola_dir_y;
+    int placar_esquerda, placar_direita;
     bool quit;
     GameStatus status;
-    int winning_player;
-    char **field;
-    ScoreNode *score_history;
+    int jogador_vencedor;
+    char **campo;
+    ScoreNode *historico_placar;
 } GameState;
 
 // Funções principais
-void init_game(GameState *game);
-void handle_input(GameState *game);
-void update_game(GameState *game);
-void render(GameState *game);
-void free_resources(GameState *game);
+void jogo_inicio(GameState *game);
+void processar_input(GameState *game);
+void atualizar_jogo(GameState *game);
+void renderizar(GameState *game);
+void liberar(GameState *game);
 
 // Funções de placar
-void add_score_to_history(GameState *game);
-void save_scores(GameState *game);
-void load_scores(GameState *game);
-void reset_scores(GameState *game);
+void add_placar_historico(GameState *game);
+void salvar_placar(GameState *game);
+void carregar_placar(GameState *game);
+void resetar_placar(GameState *game);
 
 #endif

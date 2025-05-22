@@ -11,20 +11,20 @@ int main() {
     timerInit(20);  // ~14 FPS
 
     GameState game;
-    init_game(&game);
+    jogo_inicio(&game);
 
     while (!game.quit) {
-        handle_input(&game);
-        
+        processar_input(&game);
+
         if (timerTimeOver()) {  // Atualiza no ritmo do timer
-            update_game(&game);
-            render(&game);
+            atualizar_jogo(&game);
+            renderizar(&game);
         }
     }
 
     // Limpeza
     keyboardDestroy();
     screenDestroy();
-    free_resources(&game);
+    liberar(&game);
     return 0;
 }

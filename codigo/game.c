@@ -14,36 +14,36 @@
 
 /* ========== Funções da Bola ========== */
 
-void reset_ball(GameState *game) {
-    game->ball_x = SCREEN_WIDTH / 2;
-    game->ball_y = SCREEN_HEIGHT / 2;
-    game->ball_dir_x = (rand() % 2) ? BALL_SPEED : -BALL_SPEED;
-    game->ball_dir_y = ((rand() % 3) - 1) * 0.7f;
+void resetar_bola(GameState *game) {
+    game->bola_x = SCREEN_WIDTH / 2;
+    game->bola_y = SCREEN_HEIGHT / 2;
+    game->bola_dir_x = (rand() % 2) ? BALL_SPEED : -BALL_SPEED;
+    game->bola_dir_y = ((rand() % 3) - 1) * 0.7f;
 }
 
 /* ========== Funções Principais ========== */
 
-void init_game(GameState *game) {
+void jogo_inicio(GameState *game) {
     srand(time(NULL));
     
-    game->field = malloc(SCREEN_HEIGHT * sizeof(char *));
+    game->campo = malloc(SCREEN_HEIGHT * sizeof(char *));
     for (int i = 0; i < SCREEN_HEIGHT; i++) {
-        game->field[i] = malloc(SCREEN_WIDTH * sizeof(char));
-        memset(game->field[i], ' ', SCREEN_WIDTH);
+        game->campo[i] = malloc(SCREEN_WIDTH * sizeof(char));
+        memset(game->campo[i], ' ', SCREEN_WIDTH);
     }
 
-    game->paddle_left = game->paddle_right = SCREEN_HEIGHT / 2;
-    reset_ball(game);
-    game->score_left = game->score_right = 0;
+    game->raquete_esquerda = game->raquete_direita = SCREEN_HEIGHT / 2;
+    resetar_bola(game);
+    game->placar_esquerda = game->placar_direita = 0;
     game->quit = false;
     game->status = MENU;
-    game->winning_player = 0;
-    game->score_history = NULL;
+    game->jogador_vencedor = 0;
+    game->historico_placar = NULL;
     
-    load_scores(game);
+    carregar_placar(game);
 }
 
-void handle_input(GameState *game) {
+void processar_input(GameState *game) {
     if (!keyhit()) return;
     
     int ch = readch();
@@ -51,7 +51,7 @@ void handle_input(GameState *game) {
     if (game->status == MENU) {
         if (ch == ' ') game->status = PLAYING;
         else if (ch == 'q') game->quit = true;
-        else if (ch == 'r' || ch == 'R') reset_scores(game);
+        else if (ch == 'r' || ch == 'R') resetar_placar(game);
         return;
     }
     
@@ -61,80 +61,80 @@ void handle_input(GameState *game) {
     }
 
     switch(ch) {
-        case 'w': if (game->paddle_left > 1) game->paddle_left--; break;
-        case 's': if (game->paddle_left < SCREEN_HEIGHT-2) game->paddle_left++; break;
-        case 'i': if (game->paddle_right > 1) game->paddle_right--; break;
-        case 'k': if (game->paddle_right < SCREEN_HEIGHT-2) game->paddle_right++; break;
+        case 'w': if (game->raquete_esquerda > 1) game->raquete_esquerda--; break;
+        case 's': if (game->raquete_esquerda < SCREEN_HEIGHT-2) game->raquete_esquerda++; break;
+        case 'i': if (game->raquete_direita > 1) game->raquete_direita--; break;
+        case 'k': if (game->raquete_direita < SCREEN_HEIGHT-2) game->raquete_direita++; break;
     }
 }
 
-void update_game(GameState *game) {
+void atualizar_jogo(GameState *game) {
     if (game->status != PLAYING) return;
 
-    game->ball_x += game->ball_dir_x;
-    game->ball_y += game->ball_dir_y;
+    game->bola_x += game->bola_dir_x;
+    game->bola_y += game->bola_dir_y;
 
     // Colisão com bordas
-    if (game->ball_y <= 0 || game->ball_y >= SCREEN_HEIGHT - 1) {
-        game->ball_dir_y *= -1;
+    if (game->bola_y <= 0 || game->bola_y >= SCREEN_HEIGHT - 1) {
+        game->bola_dir_y *= -1;
     }
 
     // Colisão com raquetes (versão otimizada)
-    if (game->ball_x <= 1 && abs(game->ball_y - game->paddle_left) <= 2) {
-        float hit_pos = (game->ball_y - game->paddle_left) / 2.0f;
-        game->ball_dir_x = (game->ball_dir_x < 0 ? -game->ball_dir_x : game->ball_dir_x) * 1.1f;
-        game->ball_dir_y = hit_pos;
-        game->ball_x = 2; // Previne colisão múltipla
+    if (game->bola_x <= 1 && abs(game->bola_y - game->raquete_esquerda) <= 2) {
+        float hit_pos = (game->bola_y - game->raquete_esquerda) / 2.0f;
+        game->bola_dir_x = (game->bola_dir_x < 0 ? -game->bola_dir_x : game->bola_dir_x) * 1.1f;
+        game->bola_dir_y = hit_pos;
+        game->bola_x = 2; // Previne colisão múltipla
     }
 
-    if (game->ball_x >= SCREEN_WIDTH - 2 && abs(game->ball_y - game->paddle_right) <= 2) {
-        float hit_pos = (game->ball_y - game->paddle_right) / 2.0f;
-        game->ball_dir_x = (game->ball_dir_x > 0 ? -game->ball_dir_x : game->ball_dir_x) * 1.1f;
-        game->ball_dir_y = hit_pos;
-        game->ball_x = SCREEN_WIDTH - 3;
+    if (game->bola_x >= SCREEN_WIDTH - 2 && abs(game->bola_y - game->raquete_direita) <= 2) {
+        float hit_pos = (game->bola_y - game->raquete_direita) / 2.0f;
+        game->bola_dir_x = (game->bola_dir_x > 0 ? -game->bola_dir_x : game->bola_dir_x) * 1.1f;
+        game->bola_dir_y = hit_pos;
+        game->bola_x = SCREEN_WIDTH - 3;
     }
 
     // Sistema de pontuação
-    if (game->ball_x < 0 || game->ball_x >= SCREEN_WIDTH) {
-        if (game->ball_x < 0) game->score_right++;
-        else game->score_left++;
+    if (game->bola_x < 0 || game->bola_x >= SCREEN_WIDTH) {
+        if (game->bola_x < 0) game->placar_direita++;
+        else game->placar_esquerda++;
         
-        if (game->score_left >= WINNING_SCORE || game->score_right >= WINNING_SCORE) {
+        if (game->placar_esquerda >= WINNING_SCORE || game->placar_direita >= WINNING_SCORE) {
             game->status = GAME_OVER;
-            game->winning_player = (game->score_left > game->score_right) ? 1 : 2;
-            add_score_to_history(game);
+            game->jogador_vencedor = (game->placar_esquerda > game->placar_direita) ? 1 : 2;
+            add_placar_historico(game);
         } else {
-            reset_ball(game);
+            resetar_bola(game);
         }
     }
 }
 
 /* ========== Renderização ========== */
 
-void draw_paddles(GameState *game) {
+void desenho_raquetes(GameState *game) {
     for (int i = -1; i <= 1; i++) {
-        int left = game->paddle_left + i;
-        if (left >= 0 && left < SCREEN_HEIGHT) {
-            screenGotoxy(0, left);
+        int esquerda = game->raquete_esquerda + i;
+        if (esquerda >= 0 && esquerda < SCREEN_HEIGHT) {
+            screenGotoxy(0, esquerda);
             putchar('|');
         }
-        int right = game->paddle_right + i;
-        if (right >= 0 && right < SCREEN_HEIGHT) {
-            screenGotoxy(SCREEN_WIDTH-1, right);
+        int direita = game->raquete_direita + i;
+        if (direita >= 0 && direita < SCREEN_HEIGHT) {
+            screenGotoxy(SCREEN_WIDTH-1, direita);
             putchar('|');
         }
     }
 }
 
-void draw_ball(GameState *game) {
-    if (game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH && 
-        game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT) {
-        screenGotoxy((int)game->ball_x, (int)game->ball_y);
+void desenho_bola(GameState *game) {
+    if (game->bola_x >= 0 && game->bola_x < SCREEN_WIDTH && 
+        game->bola_y >= 0 && game->bola_y < SCREEN_HEIGHT) {
+        screenGotoxy((int)game->bola_x, (int)game->bola_y);
         putchar('O');
     }
 }
 
-void show_menu(GameState *game) {
+void mostrar_menu(GameState *game) {
     screenClear();
     
     // Título centralizado com efeito
@@ -161,12 +161,12 @@ void show_menu(GameState *game) {
     screenGotoxy(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 + 5);
     printf("MELHORES PARTIDAS");
 
-    ScoreNode *current = game->score_history;
+    ScoreNode *atual = game->historico_placar;
     int count = 0;
-    while (current != NULL && count < 3) {
+    while (atual != NULL && count < 3) {
         screenGotoxy(SCREEN_WIDTH/2 - 8, SCREEN_HEIGHT/2 + 7 + count);
-        printf("%d. %2d - %-2d", count + 1, current->score_left, current->score_right);
-        current = current->next;
+        printf("%d. %2d - %-2d", count + 1, atual->placar_esquerda, atual->placar_direita);
+        atual = atual->next;
         count++;
     }
 
@@ -179,10 +179,10 @@ void show_menu(GameState *game) {
     }
 }
 
-void show_game_over(GameState *game) {
+void mostrar_game_over(GameState *game) {
     screenClear();
     
-    const char* winner_msg = game->winning_player == 1 ? 
+    const char* vencedor_msg = game->jogador_vencedor == 1 ? 
         "JOGADOR 1 VENCEU!" : "JOGADOR 2 VENCEU!";
 
     // Moldura superior
@@ -200,14 +200,14 @@ void show_game_over(GameState *game) {
     printf("|---------------------|");
 
     // Mensagem do vencedor
-    screenGotoxy(SCREEN_WIDTH/2 - strlen(winner_msg)/2, SCREEN_HEIGHT/2 - 1);
-    printf("%s", winner_msg);
+    screenGotoxy(SCREEN_WIDTH/2 - strlen(vencedor_msg)/2, SCREEN_HEIGHT/2 - 1);
+    printf("%s", vencedor_msg);
 
     // Placar final
-    char final_score[30];
-    sprintf(final_score, "Placar: %d - %d", game->score_left, game->score_right);
-    screenGotoxy(SCREEN_WIDTH/2 - strlen(final_score)/2, SCREEN_HEIGHT/2);
-    printf("%s", final_score);
+    char placar_final[30];
+    sprintf(placar_final, "Placar: %d - %d", game->placar_esquerda, game->placar_direita);
+    screenGotoxy(SCREEN_WIDTH/2 - strlen(placar_final)/2, SCREEN_HEIGHT/2);
+    printf("%s", placar_final);
 
     // Moldura inferior
     screenGotoxy(SCREEN_WIDTH/2 - 12, SCREEN_HEIGHT/2 + 1);
@@ -228,54 +228,54 @@ void show_game_over(GameState *game) {
     }
 }
 
-void render(GameState *game) {
+void renderizar(GameState *game) {
     screenClear();  // Limpa a tela primeiro
 
     if (game->status == PLAYING) {
         // Preenche a matriz com espaços
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
-            memset(game->field[y], ' ', SCREEN_WIDTH);
+            memset(game->campo[y], ' ', SCREEN_WIDTH);
         }
 
         // Desenha a bola
-        if (game->ball_y >= 0 && game->ball_y < SCREEN_HEIGHT && 
-            game->ball_x >= 0 && game->ball_x < SCREEN_WIDTH) {
-            game->field[(int)game->ball_y][(int)game->ball_x] = 'O';
+        if (game->bola_y >= 0 && game->bola_y < SCREEN_HEIGHT && 
+            game->bola_x >= 0 && game->bola_x < SCREEN_WIDTH) {
+            game->campo[(int)game->bola_y][(int)game->bola_x] = 'O';
         }
 
         // Desenha as raquetes
         for (int i = -1; i <= 1; i++) {
-            int left = game->paddle_left + i;
-            int right = game->paddle_right + i;
+            int esquerda = game->raquete_esquerda + i;
+            int direita = game->raquete_direita + i;
             
-            if (left >= 0 && left < SCREEN_HEIGHT) {
-                game->field[left][0] = '|';
+            if (esquerda >= 0 && esquerda < SCREEN_HEIGHT) {
+                game->campo[esquerda][0] = '|';
             }
-            if (right >= 0 && right < SCREEN_HEIGHT) {
-                game->field[right][SCREEN_WIDTH-1] = '|';
+            if (direita >= 0 && direita < SCREEN_HEIGHT) {
+                game->campo[direita][SCREEN_WIDTH-1] = '|';
             }
         }
 
         // Renderiza a matriz
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
             screenGotoxy(0, y);
-            fwrite(game->field[y], sizeof(char), SCREEN_WIDTH, stdout);
+            fwrite(game->campo[y], sizeof(char), SCREEN_WIDTH, stdout);
         }
 
         // Placar (renderizado separadamente para evitar flicker)
-        char score[10];
-        sprintf(score, "%d - %d", game->score_left, game->score_right);
+        char placar[10];
+        sprintf(placar, "%d - %d", game->placar_esquerda, game->placar_direita);
         screenGotoxy(SCREEN_WIDTH/2 - 3, 0);
-        printf("%s", score);
+        printf("%s", placar);
 
     } else {
         // Menus são renderizados de forma independente
         switch(game->status) {
             case MENU:
-                show_menu(game);
+                mostrar_menu(game);
                 break;
             case GAME_OVER:
-                show_game_over(game);
+                mostrar_game_over(game);
                 break;
             case PLAYING:  // Adicionado para eliminar o warning
                 break;
@@ -287,57 +287,57 @@ void render(GameState *game) {
 
 /* ========== Funções de Placar ========== */
 
-void add_score_to_history(GameState *game) {
-    ScoreNode *new_node = malloc(sizeof(ScoreNode));
-    if (!new_node) return;
+void add_placar_historico(GameState *game) {
+    ScoreNode *novo = malloc(sizeof(ScoreNode));
+    if (!novo) return;
 
-    new_node->score_left = game->score_left;
-    new_node->score_right = game->score_right;
-    new_node->next = game->score_history;
-    game->score_history = new_node;
+    novo->placar_esquerda = game->placar_esquerda;
+    novo->placar_direita = game->placar_direita;
+    novo->next = game->historico_placar;
+    game->historico_placar = novo;
     
-    save_scores(game);
+    salvar_placar(game);
 }
 
-void save_scores(GameState *game) {
+void salvar_placar(GameState *game) {
     FILE *file = fopen(SCORES_FILE, "wb");
     if (!file) return;
 
-    ScoreNode *current = game->score_history;
-    while (current != NULL) {
-        fwrite(current, sizeof(ScoreNode), 1, file);
-        current = current->next;
+    ScoreNode *atual = game->historico_placar;
+    while (atual != NULL) {
+        fwrite(atual, sizeof(ScoreNode), 1, file);
+        atual = atual->next;
     }
 
     fclose(file);
 }
 
-void load_scores(GameState *game) {
+void carregar_placar(GameState *game) {
     FILE *file = fopen(SCORES_FILE, "rb");
     if (!file) return;
 
     ScoreNode temp;
     while (fread(&temp, sizeof(ScoreNode), 1, file) == 1) {
-        ScoreNode *new_node = malloc(sizeof(ScoreNode));
-        if (!new_node) break;
+        ScoreNode *novo = malloc(sizeof(ScoreNode));
+        if (!novo) break;
         
-        new_node->score_left = temp.score_left;
-        new_node->score_right = temp.score_right;
-        new_node->next = game->score_history;
-        game->score_history = new_node;
+        novo->placar_esquerda = temp.placar_esquerda;
+        novo->placar_direita = temp.placar_direita;
+        novo->next = game->historico_placar;
+        game->historico_placar = novo;
     }
 
     fclose(file);
 }
 
-void reset_scores(GameState *game) {
-    ScoreNode *current = game->score_history;
-    while (current != NULL) {
-        ScoreNode *temp = current;
-        current = current->next;
+void resetar_placar(GameState *game) {
+    ScoreNode *atual = game->historico_placar;
+    while (atual != NULL) {
+        ScoreNode *temp = atual;
+        atual = atual->next;
         free(temp);
     }
-    game->score_history = NULL;
+    game->historico_placar = NULL;
     
     remove(SCORES_FILE);
     
@@ -350,18 +350,18 @@ void reset_scores(GameState *game) {
     }
 }
 
-void free_resources(GameState *game) {
-    if (game->field) {
+void liberar(GameState *game) {
+    if (game->campo) {
         for (int i = 0; i < SCREEN_HEIGHT; i++) {
-            free(game->field[i]);
+            free(game->campo[i]);
         }
-        free(game->field);
+        free(game->campo);
     }
     
-    ScoreNode *current = game->score_history;
-    while (current != NULL) {
-        ScoreNode *temp = current;
-        current = current->next;
+    ScoreNode *atual = game->historico_placar;
+    while (atual != NULL) {
+        ScoreNode *temp = atual;
+        atual = atual->next;
         free(temp);
     }
 }
