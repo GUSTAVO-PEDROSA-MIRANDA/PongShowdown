@@ -65,4 +65,4 @@ make
 ./pong
 
 ## 🎥 Vídeo Demonstrativo
-[![Assista ao vídeo](https://youtu.be/W95vwDYJzVQ)
+https://youtu.be/W95vwDYJzVQ
